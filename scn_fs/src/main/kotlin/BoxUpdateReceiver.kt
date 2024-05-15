@@ -313,10 +313,16 @@ suspend fun boxUpdateReceiver(
                         } catch (e:BoxAPIResponseException){
                             Log.info("api not working: " + e.toString())
                             call.respondText("Box api not working!")
+                            null
                         } catch(e:Exception){
                             Log.info("Strange error" + e.toString())
                             call.respondText("Unknown error")
+                            null
                         }
+                        if (cur_item_info == null){
+                            call.respondText("box root is null")
+                            throw(Exception("Box root is null"))
+                        } 
                         call.respondText("Box api seems to be working. Root folder:" + cur_item_info.name)
                     }
 
