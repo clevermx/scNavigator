@@ -306,6 +306,19 @@ suspend fun boxUpdateReceiver(
                         call.respondText("You are here!")
 
                     }
+                    get("check_box"){
+
+                        var cur_item_info:BoxItem.Info? = try {
+                            BoxFolder.getRootFolder(api).getInfo();
+                        } catch (e:BoxAPIResponseException){
+                            Log.info("api not working: " + e.toString())
+                            call.respondText("Box api not working!")
+                        } catch(e:Exception){
+                            Log.info("Strange error" + e.toString())
+                            call.respondText("Unknown error")
+                        }
+                        call.respondText("Box api seems to be working. Root folder:" + cur_item_info.name)
+                    }
 
                 }
 
