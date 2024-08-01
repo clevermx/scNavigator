@@ -34,9 +34,12 @@ services:
 #      - "27033:27017"
     depends_on:
        - rclone_fs
+    mem_limit: 2gb
     volumes:
       - "./mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro"
       - "$DATASET_PATH:/var/datasets:shared"
+      - "$MONGO_DB_VOLUME:/data/db" #otherwise will create anonymous volume, which will be lost after restart and ran out of storage once
+      - "$MONGO_CONF_VOLUME:/data/configdb"
   fs:
     env_file:
       - .env
@@ -71,7 +74,7 @@ services:
       image:  rclone/rclone
       user: 1014:1014
       volumes:
-        - "~/.config/rclone:/config/rclone"
+        - "/home/maksim/.config/rclone:/config/rclone"
         - "$DATASET_PATH:/data/box:shared"
         - "$BOX_CACHE:/data/cache:shared"
         - "/etc/passwd:/etc/passwd:ro"
@@ -93,8 +96,8 @@ services:
     "--buffer-size", "2000M",
     "--vfs-disk-space-total-size", "10G",
     "--read-only",
-    "--dir-cache-time", "5m",
-    "--poll-interval", "60s",
+    "--dir-cache-time", "1h",
+    "--poll-interval", "0",
     "--allow-non-empty",
     "--allow-other",
     "-v",
