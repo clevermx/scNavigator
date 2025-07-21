@@ -54,7 +54,6 @@ fun insertSCDataset(path: Path,
             mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
             mongoDBCollectionMarkers.insertMany(flatSCMarkerEntries)
         }
-        scDataset = null // Dereference large objects after usage
     } catch (e: Exception) {
         Log.error("Error while parsing $path. See exception text below")
         Log.error(e.message.toString())
