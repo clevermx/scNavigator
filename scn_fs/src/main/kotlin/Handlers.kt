@@ -29,8 +29,7 @@ fun insertSCDataset(path: Path,
         if (scDataset.expressionFile !== null) {
             val scExp = SCDatasetExpression.fromJsonFile(scDataset.expressionFile, scDataset.token)
             Log.info("Inserting the expression info for ${scExp.token} into the mongo database")
-            mongoDBCollectionExp.insertOne(scExp)
-            scExp = null // Dereference large objects after usage
+            mongoDBCollectionExp.insertOne(scExp)   
         }
 
         if (scDataset.markersFile !== null) {
@@ -54,8 +53,6 @@ fun insertSCDataset(path: Path,
             Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
             mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
             mongoDBCollectionMarkers.insertMany(flatSCMarkerEntries)
-            flatSCMarkerEntries.clear() // Dereference lists after usage
-            markersCollection = null // Dereference after usage
         }
         scDataset = null // Dereference large objects after usage
     } catch (e: Exception) {
@@ -147,7 +144,6 @@ fun insertOrUpdateSCDataset(path: Path,
                     }
 
                 }
-                scExp = null // Dereference after use
             }
 
             if (scDataset.markersFile !== null) {
@@ -171,8 +167,6 @@ fun insertOrUpdateSCDataset(path: Path,
                 Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
                 mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
                 mongoDBCollectionMarkers.insertMany(flatSCMarkerEntries)
-                flatSCMarkerEntries.clear() // Dereference lists after usage
-                markersCollection = null // Dereference after usage
             }
         }
 
