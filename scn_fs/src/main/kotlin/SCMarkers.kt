@@ -3,6 +3,7 @@ package ru.itmo.scn.fs
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import java.io.File
@@ -13,14 +14,11 @@ data class MarkerCollection(
 ) {
     companion object Factory {
         fun fromJsonFile(filePath: String): MarkerCollection {
-
-            return( File(filePath).bufferedReader().use{
+            return File(filePath).bufferedReader().use { reader ->
                 val stringContent = reader.readText()
-                val collection = format.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
-                return MarkerCollection(collection)
+                val collection = Json.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
+                MarkerCollection(collection)
             }
-            )         
-           
         }
     }
 }
@@ -49,6 +47,7 @@ data class MarkerEntry(
     val gene: String
 )
 
+
 @Serializable
 data class SCMarkerEntry(
     val _id: Id<SCMarkerEntry> = newId(),
@@ -76,5 +75,3 @@ data class SCMarkerEntry(
     @SerialName("gene")
     val gene: String
 )
-
-
