@@ -13,9 +13,14 @@ data class MarkerCollection(
 ) {
     companion object Factory {
         fun fromJsonFile(filePath: String): MarkerCollection {
-            val stringContent = File(filePath).readText()
-            val collection = format.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
-            return MarkerCollection(collection)
+
+            return( File(filePath).bufferedReader().use{
+                val stringContent = reader.readText()
+                val collection = format.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
+                return MarkerCollection(collection)
+            }
+            )         
+           
         }
     }
 }
