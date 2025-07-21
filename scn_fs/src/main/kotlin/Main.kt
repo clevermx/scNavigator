@@ -74,7 +74,7 @@ fun main(args: Array<String>) {
         mongoDBCollectionMarkers = database.getCollection<SCMarkerEntry>(mongoDBCollectionMarkersName)
     }
 
-    val pathChangesChannel = Channel<Pair<Path, WatchEvent.Kind<Path>>>();
+    val pathChangesChannel = Channel<Pair<Path, WatchEvent.Kind<Path>>>(capacity = 500);
     val watchService = FileSystems.getDefault().newWatchService()
 
     val modifiedChannel = Channel<Path>();
