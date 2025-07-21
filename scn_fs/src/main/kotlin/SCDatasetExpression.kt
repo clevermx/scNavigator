@@ -16,7 +16,7 @@ data class SCExpressionJson(
     val features: List<String>,
     val featureCounts: Map<String, Float>?,
     val barcodes: List<String>,
-    val totalCounts: List<Int>,
+    val totalCounts: List<Float>,
     val expType: ExpressionType,
 ) {
 
