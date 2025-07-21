@@ -8,6 +8,10 @@ import org.litote.kmongo.Id
 import org.litote.kmongo.newId
 import java.io.File
 
+val json = Json {
+    ignoreUnknownKeys = true
+}
+
 @Serializable
 data class MarkerCollection(
     val collection: Map<String, List<MarkerEntry>>
@@ -16,7 +20,7 @@ data class MarkerCollection(
         fun fromJsonFile(filePath: String): MarkerCollection {
             return File(filePath).bufferedReader().use { reader ->
                 val stringContent = reader.readText()
-                val collection = Json.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
+                val collection = json.decodeFromString<Map<String, List<MarkerEntry>>>(stringContent)
                 MarkerCollection(collection)
             }
         }

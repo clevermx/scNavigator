@@ -31,6 +31,10 @@ data class SCExpressionJson(
 }
 
 
+val json = Json {
+    ignoreUnknownKeys = true
+}
+
 @Serializable
 
 data class SCDatasetExpression(
@@ -49,7 +53,7 @@ data class SCDatasetExpression(
 
             return File(filePath).bufferedReader().use { reader ->
                 val stringContent = reader.readText()
-                val scExpressionJson = Json.decodeFromString<SCExpressionJson>(stringContent)
+                val scExpressionJson = json.decodeFromString<SCExpressionJson>(stringContent)
                 SCDatasetExpression(
                     token = token,
                     features = scExpressionJson.features,
