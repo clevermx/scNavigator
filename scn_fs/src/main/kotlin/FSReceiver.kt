@@ -73,7 +73,7 @@ suspend fun delayedFSReceiver(modifiedChannel: Channel<Path>,
                 fisrt_iteration_done = true
             }
         }
-        catch(Exception e) {
+        catch(e:Exception) {
             Log.info("Error in delayed delayedFSReceiver")
             Log.info(e.toString())
 
