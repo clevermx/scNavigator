@@ -74,11 +74,11 @@ fun main(args: Array<String>) {
         mongoDBCollectionMarkers = database.getCollection<SCMarkerEntry>(mongoDBCollectionMarkersName)
     }
 
-    val pathChangesChannel = Channel<Pair<Path, WatchEvent.Kind<Path>>>(capacity = 500);
+    val pathChangesChannel = Channel<Pair<Path, WatchEvent.Kind<Path>>>(capacity = 100);
     val watchService = FileSystems.getDefault().newWatchService()
 
-    val modifiedChannel = Channel<Path>();
-    val deletedChannel = Channel<Path>();
+    val modifiedChannel = Channel<Path>(capacity = 100);
+    val deletedChannel = Channel<Path>(capacity = 100);
     val fileChanges = HashMap<Path, Instant>();
     val mutex = Mutex()
     val directoryToWatch = args[0]
