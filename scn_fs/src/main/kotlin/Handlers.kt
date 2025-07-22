@@ -131,8 +131,7 @@ fun deleteSCDataset(
     mongoDBCollection: MongoCollection<SCDataset>,
     mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
     mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
-) = runBlocking {
-    withContext(Dispatchers.IO) { // running in the IO context
+) = withContext(Dispatchers.IO) { 
         try {
             val datasetQuery = mongoDBCollection.findOne(SCDataset::selfPath eq path.toString())
             if (datasetQuery == null) {
@@ -148,7 +147,7 @@ fun deleteSCDataset(
             Log.error(e.toString())
         }
     }
-}
+
 suspend fun fileChangeHandler(
     modifiedChannel: Channel<Path>,
     mongoDBCollection: MongoCollection<SCDataset>,
