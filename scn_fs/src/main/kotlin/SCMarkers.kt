@@ -1,6 +1,5 @@
 package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -51,36 +50,55 @@ data class MarkerCollection(
         })
         fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
             val jsonParser = objectMapper.factory.createParser(File(filePath))
-            jsonParser.use {
-                while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
-                    val entryNode: JsonNode = objectMapper.readTree(jsonParser)
-                    val tableName = entryNode.get("key").asText()
-                    // Ensure itemNode is immutable
-                    val itemsNode = entryNode.get("value")
-                    itemsNode.forEach { itemNode ->
-                        try {
-                            val markerEntry = MarkerEntry(
-                                pValue = itemNode.get("p_val")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid p_val: ${itemNode.get("p_val")}"),
-                                pValueAdjusted = itemNode.get("p_val_adj")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid p_val_adj: ${itemNode.get("p_val_adj")}"),
-                                averageLogFoldChange = itemNode.get("avg_logFC")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid avg_logFC: ${itemNode.get("avg_logFC")}"),
-                                pct1 = itemNode.get("pct.1")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid pct.1: ${itemNode.get("pct.1")}"),
-                                pct2 = itemNode.get("pct.2")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid pct.2: ${itemNode.get("pct.2")}"),
-                                cluster = itemNode.get("cluster")?.asText()
-                                    ?: throw IllegalArgumentException("Missing or invalid cluster: ${itemNode.get("cluster")}"),
-                                gene = itemNode.get("gene")?.asText()
-                                    ?: throw IllegalArgumentException("Missing or invalid gene: ${itemNode.get("gene")}")
-                            )
-                            emit(tableName to markerEntry) // Emit each entry pair
-                        } catch (e: IllegalArgumentException) {
-                            println("Error parsing MarkerEntry: ${e.message}")
+            try {
+                jsonParser.use {
+                    while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
+                        val entryNode: JsonNode = objectMapper.readTree(jsonParser)
+                        println("Parsed entry node: $entryNode")
+                        val tableNameNode = entryNode.get("key")
+                        if (tableNameNode == null || tableNameNode.asText().isEmpty()) {
+                            println("Missing or invalid tableNameNode: $tableNameNode")
+                            continue
+                        }
+                        val tableName = tableNameNode.asText()
+                        val itemsNode = entryNode.get("value")
+                        if (itemsNode == null || !itemsNode.isArray) {
+                            println("Missing or invalid itemsNode: $itemsNode")
+                            continue
+                        }
+                        itemsNode.forEach { itemNode ->
+                            try {
+                                val pValueNode = itemNode.get("p_val")
+                                val pValueAdjNode = itemNode.get("p_val_adj")
+                                val avgLogFCNode = itemNode.get("avg_logFC")
+                                val pct1Node = itemNode.get("pct.1")
+                                val pct2Node = itemNode.get("pct.2")
+                                val clusterNode = itemNode.get("cluster")
+                                val geneNode = itemNode.get("gene")
+                                if (pValueNode == null || pValueAdjNode == null || avgLogFCNode == null || pct1Node == null || pct2Node == null || clusterNode == null || geneNode == null) {
+                                    println("Missing necessary fields in itemNode: $itemNode")
+                                    return@forEach
+                                }
+                                val markerEntry = MarkerEntry(
+                                    pValue = pValueNode.asDouble(),
+                                    pValueAdjusted = pValueAdjNode.asDouble(),
+                                    averageLogFoldChange = avgLogFCNode.asDouble(),
+                                    pct1 = pct1Node.asDouble(),
+                                    pct2 = pct2Node.asDouble(),
+                                    cluster = clusterNode.asText(),
+                                    gene = geneNode.asText()
+                                )
+                                emit(tableName to markerEntry) // Emit each entry pair
+                            } catch (e: Exception) {
+                                println("Error parsing MarkerEntry: ${e.message}")
+                                e.printStackTrace()
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                println("Error processing JSON file $filePath: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
