@@ -1,5 +1,6 @@
 package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -43,7 +44,7 @@ data class MarkerCollection(
     val collection: Map<String, List<MarkerEntry>>
 ) {
     companion object Factory {
-        private val objectMapper = ObjectMapper(JsonFactory().apply {
+        private val objectMapper: ObjectMapper = ObjectMapper(JsonFactory().apply {
             enable(JsonParser.Feature.ALLOW_COMMENTS)
             enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)
             enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
