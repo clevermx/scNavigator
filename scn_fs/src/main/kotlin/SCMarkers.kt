@@ -1,5 +1,6 @@
 package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -49,10 +50,12 @@ data class MarkerCollection(
             enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
         })
         fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
-            val jsonParser = objectMapper.factory.createParser(File(filePath))
+            val file = File(filePath)
+            require(file.exists() && file.isFile) { "File does not exist or is not a valid file: $filePath" }
+            val jsonParser = objectMapper.factory.createParser(file)
             try {
                 jsonParser.use {
-                    while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
+                    while (jsonParser.nextToken() != JsonToken.END_OBJECT) { // Adjust to correctly parse object nodes 
                         val entryNode: JsonNode = objectMapper.readTree(jsonParser)
                         println("Parsed entry node: $entryNode")
                         val tableNameNode = entryNode.get("key")
