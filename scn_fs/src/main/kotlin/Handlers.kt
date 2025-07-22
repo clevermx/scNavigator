@@ -126,7 +126,7 @@ suspend fun insertOrUpdateSCDataset(
         Log.error(e.toString())
     }
 }
-fun deleteSCDataset(
+suspend fun deleteSCDataset(
     path: Path,
     mongoDBCollection: MongoCollection<SCDataset>,
     mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
