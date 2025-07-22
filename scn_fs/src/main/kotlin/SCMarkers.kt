@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.File
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 @Serializable
 data class MarkerEntry(
     @SerialName("p_val")

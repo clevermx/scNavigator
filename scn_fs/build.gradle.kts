@@ -29,7 +29,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.3.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.0")
     implementation("io.github.jupf.staticlog:staticlog:2.2.0")
     implementation("org.litote.kmongo:kmongo:$mongoVersion")
     implementation(":jarhdf5-2.11.0")
