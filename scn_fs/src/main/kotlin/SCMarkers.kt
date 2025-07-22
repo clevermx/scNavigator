@@ -1,3 +1,4 @@
+package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
 import com.fasterxml.jackson.databind.JsonNode
 import kotlinx.coroutines.flow.Flow
