@@ -1,6 +1,6 @@
 package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.flow.Flow
@@ -43,21 +43,17 @@ data class MarkerCollection(
     val collection: Map<String, List<MarkerEntry>>
 ) {
     companion object Factory {
-        private val objectMapper = ObjectMapper().apply {
-            // Setup ObjectMapper features
+        private val objectMapper = ObjectMapper(JsonFactory().apply {
             enable(JsonParser.Feature.ALLOW_COMMENTS)
             enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)
             enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
-        }
+        })
         fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
-            val jsonFactory = JsonFactory()
-            val jsonParser = jsonFactory.createParser(File(filePath))
+            val jsonParser = objectMapper.factory.createParser(File(filePath))
             jsonParser.use {
-                objectMapper.factory = jsonFactory // Attach ObjectMapper factory
-                while (jsonParser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY) {
-                    val entryNode = objectMapper.readTree(jsonParser) as JsonNode
+                while (jsonParser.nextToken() != JsonToken.END_ARRAY) {
+                    val entryNode: JsonNode = objectMapper.readTree(jsonParser)
                     val tableName = entryNode.get("key").asText()
-                    
                     // Ensure itemNode is immutable
                     val itemsNode = entryNode.get("value")
                     itemsNode.forEach { itemNode ->
