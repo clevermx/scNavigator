@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.flow
 import java.io.File
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
-// Data classes
 @Serializable
 data class MarkerEntry(
     @SerialName("p_val")
@@ -39,37 +38,50 @@ data class SCMarkerEntry(
     val cluster: String,
     val gene: String
 )
-// Collection class
 @Serializable
 data class MarkerCollection(
     val collection: Map<String, List<MarkerEntry>>
 ) {
     companion object Factory {
-        // Setup ObjectMapper
-        private val objectMapper: ObjectMapper = ObjectMapper(JsonFactory().apply {
+        private val objectMapper = ObjectMapper().apply {
+            // Setup ObjectMapper features
             enable(JsonParser.Feature.ALLOW_COMMENTS)
             enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)
             enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
-        })
+        }
         fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
             val jsonFactory = JsonFactory()
             val jsonParser = jsonFactory.createParser(File(filePath))
-            objectMapper.factory = jsonFactory // Attach ObjectMapper
             jsonParser.use {
+                objectMapper.factory = jsonFactory // Attach ObjectMapper factory
                 while (jsonParser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY) {
-                    val entryNode: JsonNode = objectMapper.readTree(jsonParser)
+                    val entryNode = objectMapper.readTree(jsonParser) as JsonNode
                     val tableName = entryNode.get("key").asText()
-                    entryNode.get("value").forEach { itemNode ->
-                        val markerEntry = MarkerEntry(
-                            pValue = itemNode.get("p_val").asDouble(),
-                            pValueAdjusted = itemNode.get("p_val_adj").asDouble(),
-                            averageLogFoldChange = itemNode.get("avg_logFC").asDouble(),
-                            pct1 = itemNode.get("pct.1").asDouble(),
-                            pct2 = itemNode.get("pct.2").asDouble(),
-                            cluster = itemNode.get("cluster").asText(),
-                            gene = itemNode.get("gene").asText()
-                        )
-                        emit(tableName to markerEntry) // Emit each entry pair
+                    
+                    // Ensure itemNode is immutable
+                    val itemsNode = entryNode.get("value")
+                    itemsNode.forEach { itemNode ->
+                        try {
+                            val markerEntry = MarkerEntry(
+                                pValue = itemNode.get("p_val")?.asDouble()
+                                    ?: throw IllegalArgumentException("Missing or invalid p_val: ${itemNode.get("p_val")}"),
+                                pValueAdjusted = itemNode.get("p_val_adj")?.asDouble()
+                                    ?: throw IllegalArgumentException("Missing or invalid p_val_adj: ${itemNode.get("p_val_adj")}"),
+                                averageLogFoldChange = itemNode.get("avg_logFC")?.asDouble()
+                                    ?: throw IllegalArgumentException("Missing or invalid avg_logFC: ${itemNode.get("avg_logFC")}"),
+                                pct1 = itemNode.get("pct.1")?.asDouble()
+                                    ?: throw IllegalArgumentException("Missing or invalid pct.1: ${itemNode.get("pct.1")}"),
+                                pct2 = itemNode.get("pct.2")?.asDouble()
+                                    ?: throw IllegalArgumentException("Missing or invalid pct.2: ${itemNode.get("pct.2")}"),
+                                cluster = itemNode.get("cluster")?.asText()
+                                    ?: throw IllegalArgumentException("Missing or invalid cluster: ${itemNode.get("cluster")}"),
+                                gene = itemNode.get("gene")?.asText()
+                                    ?: throw IllegalArgumentException("Missing or invalid gene: ${itemNode.get("gene")}")
+                            )
+                            emit(tableName to markerEntry) // Emit each entry pair
+                        } catch (e: IllegalArgumentException) {
+                            println("Error parsing MarkerEntry: ${e.message}")
+                        }
                     }
                 }
             }

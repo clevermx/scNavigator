@@ -1,90 +1,193 @@
 package ru.itmo.scn.fs
-import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import com.mongodb.client.MongoCollection
+import de.jupf.staticlog.Log
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.withContext
+import org.litote.kmongo.eq
+import org.litote.kmongo.findOne
+import org.litote.kmongo.updateOneById
+import org.litote.kmongo.deleteOneById
 import java.io.File
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
-@Serializable
-data class MarkerEntry(
-    @SerialName("p_val")
-    val pValue: Double,
-    @SerialName("p_val_adj")
-    val pValueAdjusted: Double,
-    @SerialName("avg_logFC")
-    val averageLogFoldChange: Double,
-    @SerialName("pct.1")
-    val pct1: Double,
-    @SerialName("pct.2")
-    val pct2: Double,
-    @SerialName("cluster")
-    val cluster: String,
-    @SerialName("gene")
-    val gene: String
-)
-@Serializable
-data class SCMarkerEntry(
-    val _id: org.litote.kmongo.Id<SCMarkerEntry> = org.litote.kmongo.newId(),
-    val token: String,
-    val tableName: String,
-    val pValue: Double,
-    val pValueAdjusted: Double,
-    val averageLogFoldChange: Double,
-    val pct1: Double,
-    val pct2: Double,
-    val cluster: String,
-    val gene: String
-)
-@Serializable
-data class MarkerCollection(
-    val collection: Map<String, List<MarkerEntry>>
-) {
-    companion object Factory {
-        private val objectMapper = ObjectMapper().apply {
-            // Setup ObjectMapper features
-            enable(JsonParser.Feature.ALLOW_COMMENTS)
-            enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)
-            enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+var max_exp_file:Double = 0.0
+suspend fun insertSCDataset(
+    path: Path,
+    mongoDBCollection: MongoCollection<SCDataset>,
+    mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
+    mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
+) = withContext(Dispatchers.IO) {
+    try {
+        val scDataset = SCDataset.fromJsonFile(path)
+        Log.info("Inserting the dataset ${scDataset.token} into the mongo database")
+        mongoDBCollection.insertOne(scDataset)
+        
+        if (scDataset.expressionFile != null) {
+            val curFileSize = File(scDataset.expressionFile).length() / (1024.0 * 1024.0)
+            if (curFileSize > max_exp_file) {
+                max_exp_file = curFileSize
+            }
+            val scExp = SCDatasetExpression.fromJsonFile(scDataset.expressionFile, scDataset.token)
+            Log.info("Inserting the expression info for ${scExp.token} into the mongo database. cur_size:${curFileSize}MB, max_size:${max_exp_file}MB")
+            mongoDBCollectionExp.insertOne(scExp)
         }
-        fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
-            val jsonFactory = JsonFactory()
-            val jsonParser = jsonFactory.createParser(File(filePath))
-            jsonParser.use {
-                objectMapper.factory = jsonFactory // Attach ObjectMapper factory
-                while (jsonParser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY) {
-                    val entryNode = objectMapper.readTree(jsonParser) as JsonNode
-                    val tableName = entryNode.get("key").asText()
-                    
-                    // Ensure itemNode is immutable
-                    val itemsNode = entryNode.get("value")
-                    itemsNode.forEach { itemNode ->
-                        try {
-                            val markerEntry = MarkerEntry(
-                                pValue = itemNode.get("p_val")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid p_val: ${itemNode.get("p_val")}"),
-                                pValueAdjusted = itemNode.get("p_val_adj")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid p_val_adj: ${itemNode.get("p_val_adj")}"),
-                                averageLogFoldChange = itemNode.get("avg_logFC")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid avg_logFC: ${itemNode.get("avg_logFC")}"),
-                                pct1 = itemNode.get("pct.1")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid pct.1: ${itemNode.get("pct.1")}"),
-                                pct2 = itemNode.get("pct.2")?.asDouble()
-                                    ?: throw IllegalArgumentException("Missing or invalid pct.2: ${itemNode.get("pct.2")}"),
-                                cluster = itemNode.get("cluster")?.asText()
-                                    ?: throw IllegalArgumentException("Missing or invalid cluster: ${itemNode.get("cluster")}"),
-                                gene = itemNode.get("gene")?.asText()
-                                    ?: throw IllegalArgumentException("Missing or invalid gene: ${itemNode.get("gene")}")
-                            )
-                            emit(tableName to markerEntry) // Emit each entry pair
-                        } catch (e: IllegalArgumentException) {
-                            println("Error parsing MarkerEntry: ${e.message}")
-                        }
+        if (scDataset.markersFile != null) {
+            Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
+            val entriesFlow = MarkerCollection.flowFromJsonFile(scDataset.markersFile)
+            mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
+            entriesFlow.collect { (tableName, markerEntry) ->
+                val scMarkerEntry = SCMarkerEntry(
+                    token = scDataset.token,
+                    tableName = tableName,
+                    cluster = markerEntry.cluster,
+                    gene = markerEntry.gene,
+                    pct1 = markerEntry.pct1,
+                    pct2 = markerEntry.pct2,
+                    pValue = markerEntry.pValue,
+                    pValueAdjusted = markerEntry.pValueAdjusted,
+                    averageLogFoldChange = markerEntry.averageLogFoldChange
+                )
+                mongoDBCollectionMarkers.insertOne(scMarkerEntry)
+            }
+            Log.info("Updated markers for ${scDataset.token}")
+        }
+    } catch (e: Exception) {
+        Log.error("Error while parsing $path. See exception text below")
+        Log.error(e.toString())
+    }
+}
+suspend fun insertOrUpdateSCDataset(
+    path: Path,
+    mongoDBCollection: MongoCollection<SCDataset>,
+    mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
+    mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
+) = withContext(Dispatchers.IO) {
+    try {
+        val scDataset = SCDataset.fromJsonFile(path)
+        val datasetQuery = mongoDBCollection.findOne(SCDataset::token eq scDataset.token)
+        var updated = false
+        if (datasetQuery == null) {
+            Log.info("Inserting the dataset ${scDataset.token} into the mongo database")
+            mongoDBCollection.insertOne(scDataset)
+            updated = true
+        } else {
+            if (datasetQuery.selfPath == scDataset.selfPath) {
+                Log.info("Updating the dataset ${scDataset.token} in the database")
+                mongoDBCollection.updateOneById(datasetQuery._id, scDataset)
+                updated = true
+            } else {
+                Log.error("Dataset with token ${scDataset.token} already exists: ${datasetQuery.selfPath}. Not updating")
+            }
+        }
+        if (updated) {
+            if (scDataset.expressionFile != null) {
+                val curFileSize = File(scDataset.expressionFile).length() / (1024.0 * 1024.0)
+                if (curFileSize > max_exp_file) {
+                    max_exp_file = curFileSize
+                }
+                val scExp = SCDatasetExpression.fromJsonFile(scDataset.expressionFile, scDataset.token)
+                when (val datasetExpQuery = mongoDBCollectionExp.findOne(SCDatasetExpression::token eq scExp.token)) {
+                    null -> {
+                        Log.info("Inserting the expression info for ${scExp.token} into the mongo database. cur_size:${curFileSize}MB, max_size:${max_exp_file}MB")
+                        mongoDBCollectionExp.insertOne(scExp)
+                    }
+                    else -> {
+                        Log.info("Updating the expression info for dataset ${scExp.token} in the database. cur_size:${curFileSize}MB, max_size:${max_exp_file}MB")
+                        mongoDBCollectionExp.updateOneById(datasetExpQuery._id, scExp)
                     }
                 }
             }
+            if (scDataset.markersFile != null) {
+                Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
+                val entriesFlow = MarkerCollection.flowFromJsonFile(scDataset.markersFile)
+                mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
+                entriesFlow.collect { (tableName, markerEntry) ->
+                    val scMarkerEntry = SCMarkerEntry(
+                        token = scDataset.token,
+                        tableName = tableName,
+                        cluster = markerEntry.cluster,
+                        gene = markerEntry.gene,
+                        pct1 = markerEntry.pct1,
+                        pct2 = markerEntry.pct2,
+                        pValue = markerEntry.pValue,
+                        pValueAdjusted = markerEntry.pValueAdjusted,
+                        averageLogFoldChange = markerEntry.averageLogFoldChange
+                    )
+                    mongoDBCollectionMarkers.insertOne(scMarkerEntry)
+                }
+                Log.info("Updated markers for ${scDataset.token}")
+            }
+        }
+    } catch (e: Exception) {
+        Log.error("Error while parsing $path. See exception text below")
+        Log.error(e.toString())
+    }
+}
+suspend fun deleteSCDataset(
+    path: Path,
+    mongoDBCollection: MongoCollection<SCDataset>,
+    mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
+    mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
+) = withContext(Dispatchers.IO) { 
+        try {
+            val datasetQuery = mongoDBCollection.findOne(SCDataset::selfPath eq path.toString())
+            if (datasetQuery == null) {
+                Log.info("Dataset $path was not in the database. Doing nothing")
+            } else {
+                Log.info("Found $path in the dataset. Removing")
+                mongoDBCollection.deleteOneById(datasetQuery._id)
+                mongoDBCollectionExp.deleteOne(SCDatasetExpression::token eq datasetQuery.token)
+                mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq datasetQuery.token)
+            }
+        } catch (e: Exception) {
+            Log.error("Something went wrong while deleting $path. See exception text below")
+            Log.error(e.toString())
         }
     }
+
+suspend fun fileChangeHandler(
+    modifiedChannel: Channel<Path>,
+    mongoDBCollection: MongoCollection<SCDataset>,
+    mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
+    mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
+) {
+    for (modifiedPath in modifiedChannel) {
+        Log.info("FILE MODIFIED: $modifiedPath")
+        val fileName = modifiedPath.fileName.toString()
+        val datasetDir = File(modifiedPath.toString()).parentFile.parentFile.path
+        val dirName = File(modifiedPath.toString()).parentFile.name
+        if (fileName == DATASET_FILE_NAME) {
+            insertOrUpdateSCDataset(modifiedPath, mongoDBCollection, mongoDBCollectionExp, mongoDBCollectionMarkers)
+        } else if (dirName == FILES_FOLDER_NAME) {
+            val datasetPath = Paths.get(datasetDir, DATASET_FILE_NAME)
+            Log.info(datasetPath.toString())
+            if (Files.exists(datasetPath)) {
+                insertOrUpdateSCDataset(datasetPath, mongoDBCollection, mongoDBCollectionExp, mongoDBCollectionMarkers)
+            }
+        }
+    }  
+}
+suspend fun fileDeleteHandler(
+    deletedChannel: Channel<Path>,
+    mongoDBCollection: MongoCollection<SCDataset>,
+    mongoDBCollectionExp: MongoCollection<SCDatasetExpression>,
+    mongoDBCollectionMarkers: MongoCollection<SCMarkerEntry>
+) {
+    for (deletedPath in deletedChannel) {
+        Log.info("FILE DELETED: $deletedPath")
+        val fileName = deletedPath.fileName.toString()
+        val dirChanged = File(deletedPath.toString()).parentFile.path
+        val dirName = File(deletedPath.toString()).parentFile.name
+        if (fileName == DATASET_FILE_NAME) {
+            deleteSCDataset(deletedPath, mongoDBCollection, mongoDBCollectionExp, mongoDBCollectionMarkers)
+        } else if (dirName == FILES_FOLDER_NAME) {
+            val datasetPath = Paths.get(dirChanged, DATASET_FILE_NAME)
+            if (Files.exists(datasetPath)) {
+                insertOrUpdateSCDataset(datasetPath, mongoDBCollection, mongoDBCollectionExp, mongoDBCollectionMarkers)
+            }
+        }
+}
 }
