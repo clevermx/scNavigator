@@ -1,11 +1,14 @@
 package ru.itmo.scn.fs
 import com.fasterxml.jackson.core.JsonFactory
+import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.File
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+// Data classes
 @Serializable
 data class MarkerEntry(
     @SerialName("p_val")
@@ -36,17 +39,25 @@ data class SCMarkerEntry(
     val cluster: String,
     val gene: String
 )
+// Collection class
 @Serializable
 data class MarkerCollection(
     val collection: Map<String, List<MarkerEntry>>
 ) {
     companion object Factory {
+        // Setup ObjectMapper
+        private val objectMapper: ObjectMapper = ObjectMapper(JsonFactory().apply {
+            enable(JsonParser.Feature.ALLOW_COMMENTS)
+            enable(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES)
+            enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES)
+        })
         fun flowFromJsonFile(filePath: String): Flow<Pair<String, MarkerEntry>> = flow {
             val jsonFactory = JsonFactory()
             val jsonParser = jsonFactory.createParser(File(filePath))
+            objectMapper.factory = jsonFactory // Attach ObjectMapper
             jsonParser.use {
                 while (jsonParser.nextToken() != com.fasterxml.jackson.core.JsonToken.END_ARRAY) {
-                    val entryNode = jsonParser.readValueAsTree<JsonNode>()
+                    val entryNode: JsonNode = objectMapper.readTree(jsonParser)
                     val tableName = entryNode.get("key").asText()
                     entryNode.get("value").forEach { itemNode ->
                         val markerEntry = MarkerEntry(

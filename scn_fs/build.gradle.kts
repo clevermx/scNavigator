@@ -48,6 +48,9 @@ dependencies {
     implementation("io.ktor:ktor-client-apache:$ktorVersion")
     implementation("io.ktor:ktor-gson:$ktorVersion")
     implementation("com.box:box-java-sdk:4.4.0")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.12.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.12.3")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.3")
 }
 
 sourceSets {
