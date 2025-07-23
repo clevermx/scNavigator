@@ -56,9 +56,10 @@ data class MarkerCollection(
             try {
                 jsonParser.use {
                     val rootNode: JsonNode = objectMapper.readTree(jsonParser)
+                    Log.info("Parsed root node: $rootNode")
                     rootNode.fields().forEach { (tableName, itemsNode) ->
                         if (itemsNode == null || !itemsNode.isArray) {
-                            println("Missing or invalid itemsNode for table: $tableName")
+                            Log.info("Missing or invalid itemsNode for table: $tableName")
                             return@forEach
                         }
                         itemsNode.forEach { itemNode ->
@@ -71,7 +72,7 @@ data class MarkerCollection(
                                 val clusterNode = itemNode.get("cluster")
                                 val geneNode = itemNode.get("gene")
                                 if (pValueNode == null || pValueAdjNode == null || avgLogFCNode == null || pct1Node == null || pct2Node == null || clusterNode == null || geneNode == null) {
-                                    println("Missing necessary fields in itemNode: $itemNode")
+                                    Log.info("Missing necessary fields in itemNode: $itemNode")
                                     return@forEach
                                 }
                                 val markerEntry = MarkerEntry(
@@ -85,14 +86,14 @@ data class MarkerCollection(
                                 )
                                 emit(tableName to markerEntry) // Emit each entry pair
                             } catch (e: Exception) {
-                                println("Error parsing MarkerEntry: ${e.message}")
+                                Log.info("Error parsing MarkerEntry: ${e.message}")
                                 e.printStackTrace()
                             }
                         }
                     }
                 }
             } catch (e: Exception) {
-                println("Error processing JSON file $filePath: ${e.message}")
+                Log.info("Error processing JSON file $filePath: ${e.message}")
                 e.printStackTrace()
             }
         }
