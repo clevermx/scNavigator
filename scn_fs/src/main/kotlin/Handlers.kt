@@ -209,7 +209,7 @@ suspend fun fileDeleteHandler(
 }
 }
 
-fun <T> Flow<T>.collectInBatches(batchSize: Int, action: suspend (List<T>) -> Unit) {
+suspend fun <T> Flow<T>.collectInBatches(batchSize: Int, action: suspend (List<T>) -> Unit) {
     val buffer = mutableListOf<T>()
     collect { item ->
         buffer.add(item)
