@@ -55,19 +55,12 @@ data class MarkerCollection(
             val jsonParser = objectMapper.factory.createParser(file)
             try {
                 jsonParser.use {
-                    while (jsonParser.nextToken() != JsonToken.END_OBJECT) { // Adjust to correctly parse object nodes 
-                        val entryNode: JsonNode = objectMapper.readTree(jsonParser)
-                        println("Parsed entry node: $entryNode")
-                        val tableNameNode = entryNode.get("key")
-                        if (tableNameNode == null || tableNameNode.asText().isEmpty()) {
-                            println("Missing or invalid tableNameNode: $tableNameNode")
-                            continue
-                        }
-                        val tableName = tableNameNode.asText()
-                        val itemsNode = entryNode.get("value")
+                    val rootNode: JsonNode = objectMapper.readTree(jsonParser)
+                    println("Parsed root node: $rootNode")
+                    rootNode.fields().forEach { (tableName, itemsNode) ->
                         if (itemsNode == null || !itemsNode.isArray) {
-                            println("Missing or invalid itemsNode: $itemsNode")
-                            continue
+                            println("Missing or invalid itemsNode for table: $tableName")
+                            return@forEach
                         }
                         itemsNode.forEach { itemNode ->
                             try {
