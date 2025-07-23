@@ -56,7 +56,6 @@ data class MarkerCollection(
             try {
                 jsonParser.use {
                     val rootNode: JsonNode = objectMapper.readTree(jsonParser)
-                    println("Parsed root node: $rootNode")
                     rootNode.fields().forEach { (tableName, itemsNode) ->
                         if (itemsNode == null || !itemsNode.isArray) {
                             println("Missing or invalid itemsNode for table: $tableName")
