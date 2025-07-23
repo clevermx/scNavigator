@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.flow
 import java.io.File
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import de.jupf.staticlog.Log
 @Serializable
 data class MarkerEntry(
     @SerialName("p_val")
@@ -56,7 +57,7 @@ data class MarkerCollection(
             try {
                 jsonParser.use {
                     val rootNode: JsonNode = objectMapper.readTree(jsonParser)
-                    Log.info("Parsed root node: $rootNode")
+                    Log.info("start markers ${file}")
                     rootNode.fields().forEach { (tableName, itemsNode) ->
                         if (itemsNode == null || !itemsNode.isArray) {
                             Log.info("Missing or invalid itemsNode for table: $tableName")
