@@ -13,6 +13,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlinx.coroutines.flow.flow
 var max_exp_file:Double = 0.0
 const val BATCH_SIZE = 1000
 suspend fun insertSCDataset(
@@ -208,7 +209,7 @@ suspend fun fileDeleteHandler(
 }
 }
 
-suspend fun <T> Flow<T>.collectInBatches(batchSize: Int, action: suspend (List<T>) -> Unit) {
+fun <T> Flow<T>.collectInBatches(batchSize: Int, action: suspend (List<T>) -> Unit) {
     val buffer = mutableListOf<T>()
     collect { item ->
         buffer.add(item)
