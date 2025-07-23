@@ -14,6 +14,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 var max_exp_file:Double = 0.0
+const val BATCH_SIZE = 1000
 suspend fun insertSCDataset(
     path: Path,
     mongoDBCollection: MongoCollection<SCDataset>,
@@ -38,19 +39,27 @@ suspend fun insertSCDataset(
             Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
             val entriesFlow = MarkerCollection.flowFromJsonFile(scDataset.markersFile)
             mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
-            entriesFlow.collect { (tableName, markerEntry) ->
-                val scMarkerEntry = SCMarkerEntry(
-                    token = scDataset.token,
-                    tableName = tableName,
-                    cluster = markerEntry.cluster,
-                    gene = markerEntry.gene,
-                    pct1 = markerEntry.pct1,
-                    pct2 = markerEntry.pct2,
-                    pValue = markerEntry.pValue,
-                    pValueAdjusted = markerEntry.pValueAdjusted,
-                    averageLogFoldChange = markerEntry.averageLogFoldChange
-                )
-                mongoDBCollectionMarkers.insertOne(scMarkerEntry)
+            // Collect and insert new marker entries in batches
+            entriesFlow.collectInBatches(BATCH_SIZE) { batch ->
+                val scMarkerEntries = batch.map { (tableName, markerEntry) ->
+                    SCMarkerEntry(
+                        token = scDataset.token,
+                        tableName = tableName,
+                        cluster = markerEntry.cluster,
+                        gene = markerEntry.gene,
+                        pct1 = markerEntry.pct1,
+                        pct2 = markerEntry.pct2,
+                        pValue = markerEntry.pValue,
+                        pValueAdjusted = markerEntry.pValueAdjusted,
+                        averageLogFoldChange = markerEntry.averageLogFoldChange
+                    )
+                }
+                try {
+                    mongoDBCollectionMarkers.insertMany(scMarkerEntries)
+                    Log.info("Inserted ${scMarkerEntries.size} marker entries")
+                } catch (e: Exception) {
+                    Log.error("Failed to insert marker entries: ${e.message}")
+                }
             }
             Log.info("Updated markers for ${scDataset.token}")
         }
@@ -104,19 +113,26 @@ suspend fun insertOrUpdateSCDataset(
                 Log.info("Updating the markers info for dataset ${scDataset.token} in the database")
                 val entriesFlow = MarkerCollection.flowFromJsonFile(scDataset.markersFile)
                 mongoDBCollectionMarkers.deleteMany(SCMarkerEntry::token eq scDataset.token)
-                entriesFlow.collect { (tableName, markerEntry) ->
-                    val scMarkerEntry = SCMarkerEntry(
-                        token = scDataset.token,
-                        tableName = tableName,
-                        cluster = markerEntry.cluster,
-                        gene = markerEntry.gene,
-                        pct1 = markerEntry.pct1,
-                        pct2 = markerEntry.pct2,
-                        pValue = markerEntry.pValue,
-                        pValueAdjusted = markerEntry.pValueAdjusted,
-                        averageLogFoldChange = markerEntry.averageLogFoldChange
-                    )
-                    mongoDBCollectionMarkers.insertOne(scMarkerEntry)
+                entriesFlow.collectInBatches(BATCH_SIZE) { batch ->
+                    val scMarkerEntries = batch.map { (tableName, markerEntry) ->
+                        SCMarkerEntry(
+                            token = scDataset.token,
+                            tableName = tableName,
+                            cluster = markerEntry.cluster,
+                            gene = markerEntry.gene,
+                            pct1 = markerEntry.pct1,
+                            pct2 = markerEntry.pct2,
+                            pValue = markerEntry.pValue,
+                            pValueAdjusted = markerEntry.pValueAdjusted,
+                            averageLogFoldChange = markerEntry.averageLogFoldChange
+                        )
+                    }
+                    try {
+                        mongoDBCollectionMarkers.insertMany(scMarkerEntries)
+                        Log.info("Inserted ${scMarkerEntries.size} marker entries")
+                    } catch (e: Exception) {
+                        Log.error("Failed to insert marker entries: ${e.message}")
+                    }
                 }
                 Log.info("Updated markers for ${scDataset.token}")
             }
@@ -190,4 +206,21 @@ suspend fun fileDeleteHandler(
             }
         }
 }
+}
+
+suspend fun <T> Flow<T>.collectInBatches(batchSize: Int, action: suspend (List<T>) -> Unit) {
+    val buffer = mutableListOf<T>()
+    collect { item ->
+        buffer.add(item)
+        if (buffer.size >= batchSize) {
+            action(buffer)
+            buffer.clear()
+        }
+    }
+    if (buffer.isNotEmpty()) {
+
+        action(buffer)
+
+    }
+
 }
