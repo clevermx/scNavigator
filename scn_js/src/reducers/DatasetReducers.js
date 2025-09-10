@@ -55,7 +55,7 @@ const createDefaultDataset = (token) => {
         public: false,
         curated: false,
         debug: false,
-
+        additional: "", 
 
         fields: null,
         plotData: null,

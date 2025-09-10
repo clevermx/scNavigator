@@ -26,7 +26,8 @@ data class SCJson (
     val cells: Int = 0,
     val public: Boolean = false,
     val curated: Boolean = false,
-    val debug: Boolean = false
+    val debug: Boolean = false,
+    val additional: String? = null 
 ) {
     companion object Factory {
         fun fromJsonFile(filePath: Path): SCJson {
@@ -50,6 +51,7 @@ data class SCDataset (
     val public: Boolean,
     val curated: Boolean,
     val debug: Boolean,
+    val additional: String?,
     val selfPath: String,
     val datasetFile: String,
     val plotDataFile: String,
@@ -91,6 +93,7 @@ data class SCDataset (
                 public = scJson.public,
                 curated = scJson.curated,
                 debug = scJson.debug,
+                additional = scJson.additional,
                 selfPath = filePath.toString(),
                 datasetFile = filePath.toString(),
                 plotDataFile = plotDataFile.toString(),
