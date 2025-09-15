@@ -152,7 +152,7 @@ tabMenuItems[FILTER] = (props) => "Filtering";
 tabMenuItems[INFO] = (props) => {
     return (<Menu.Item>
         <Header as='h4'>Information</Header>
-        <p>Token: {props.token} <br />
+        <p  style={{ whiteSpace: "pre-wrap" }}>Token: {props.token} <br />
             Species: {speciesMapping[props.species]} <br />
             Cells shown: {props.cellsShown} / {props.cells} <br />
             Total number of cells: {props.cells} <br />
