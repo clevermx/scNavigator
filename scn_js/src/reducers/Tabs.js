@@ -46,7 +46,7 @@ const generatePlotState = (dataset) => {
             split: null,
             percent: false,
             showPlotGrid: false,
-            plotPointSize: 8,
+            plotPointSize: _.get(dataset, "defaultPlotPointSize", 8),
             fontSize: 16,
             annotations: annObj
         }
